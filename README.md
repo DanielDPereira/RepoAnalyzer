@@ -367,25 +367,26 @@ OLLAMA_CONCURRENCY=1
 | `WORKSPACE_DIR`                | Diretório de trabalho                          |
 | `REQUEST_TIMEOUT_SECONDS`      | Timeout das requisições                        |
 | `OLLAMA_KEEP_ALIVE`            | Tempo de permanência do modelo carregado       |
-| `OLLAMA_THINK`                 | Ativa/desativa o modo de raciocínio do modelo  |
+| `OLLAMA_THINK`                 | Configuração legada; thinking permanece sempre desativado |
 | `OLLAMA_MAX_RETRIES`           | Número de novas tentativas após falhas         |
 | `OLLAMA_RETRY_BACKOFF_SECONDS` | Intervalo entre tentativas                     |
 | `MAX_SYNTHESIS_CHARS`          | Limite de contexto nas sínteses                |
 | `OLLAMA_CONCURRENCY`           | Número de arquivos processados simultaneamente |
 
-### Modo de raciocínio
+### Thinking desabilitado
 
-O `OLLAMA_THINK` controla o modo de raciocínio de modelos que oferecem esse recurso, como o Qwen3.
-
-Por padrão:
+O projeto força o thinking desativado para todos os modelos e não permite
+reativá-lo por variável de ambiente. Cada requisição envia `think: false` e o
+system prompt inclui `/nothink` quando necessário.
 
 ```env
 OLLAMA_THINK=false
 ```
 
-Isso evita que blocos de raciocínio sejam incorporados ao relatório.
-
-Como proteção adicional, respostas contendo blocos `<think>...</think>` são filtradas antes de serem utilizadas pelo pipeline.
+Essa variável é mantida apenas por compatibilidade. O cliente também descarta
+o campo separado `message.thinking` da API e remove blocos `<think>...</think>`
+e `<analysis>...</analysis>` que eventualmente apareçam em `message.content`,
+inclusive blocos sem tag de fechamento ou com apenas a tag final `</think>`.
 
 ### Retry
 

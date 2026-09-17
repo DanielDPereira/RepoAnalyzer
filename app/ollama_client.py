@@ -3,7 +3,24 @@ import time
 
 import httpx
 
-THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+# Alguns modelos colocam o raciocínio no próprio texto; outros usam o campo
+# separado `message.thinking` da API do Ollama. Os dois caminhos são tratados.
+THINK_BLOCK_RE = re.compile(
+    r"<think>.*?(?:</think>|$)|<analysis>.*?(?:</analysis>|$)",
+    re.DOTALL | re.IGNORECASE,
+)
+ORPHAN_END_THINK_RE = re.compile(r"^.*?</(?:think|analysis)>\s*", re.DOTALL | re.IGNORECASE)
+
+
+def strip_thinking(text: str) -> str:
+    """Remove thinking embutido, inclusive respostas malformadas.
+
+    Alguns modelos/versões podem emitir o raciocínio sem a tag de abertura e
+    terminar apenas com ``</think>``. Nesse caso, tudo antes do fechamento é
+    tratado como raciocínio e somente o texto posterior é preservado.
+    """
+    text = THINK_BLOCK_RE.sub("", text)
+    return ORPHAN_END_THINK_RE.sub("", text).strip()
 
 
 class OllamaError(RuntimeError):
@@ -25,7 +42,9 @@ class OllamaClient:
         self.model = model
         self.timeout = timeout
         self.keep_alive = keep_alive
-        self.think = think
+        # `think` permanece na assinatura por compatibilidade, mas nunca é
+        # aceito como configuração: este cliente sempre opera sem thinking.
+        self.think = False
         self.max_retries = max(0, max_retries)
         self.retry_backoff_seconds = retry_backoff_seconds
         # Um único cliente HTTP é reaproveitado por todas as chamadas
@@ -38,9 +57,8 @@ class OllamaClient:
         self._client.close()
 
     def chat(self, system: str, user: str, temperature: float = 0.1) -> str:
-        # Quando think está desativado (padrão), garante a tag /nothink no
-        # system prompt para modelos que a utilizam (como Qwen3/DeepSeek).
-        if not self.think and not system.strip().startswith(("/nothink", "/no_think")):
+        # Reforço para modelos que entendem comandos de sessão no prompt.
+        if not system.strip().startswith(("/nothink", "/no_think")):
             system = f"/nothink\n{system}"
 
         payload = {
@@ -51,11 +69,9 @@ class OllamaClient:
             ],
             "stream": False,
             "keep_alive": self.keep_alive,
-            # Modelos com modo de raciocínio (ex.: Qwen3) ficam com "thinking"
-            # ligado por padrão no Ollama. Desligamos para manter o relatório
-            # limpo; se a versão instalada do Ollama ignorar o parâmetro, o
-            # bloco <think>...</think> é removido como salvaguarda abaixo.
-            "think": self.think,
+            # Nem todo modelo respeita esse sinalizador; o filtro da resposta
+            # abaixo continua sendo obrigatório.
+            "think": False,
             "options": {
                 "temperature": temperature
             }
@@ -78,8 +94,9 @@ class OllamaClient:
                     f"após {self.max_retries + 1} tentativa(s): {last_error}"
                 ) from last_error
 
+        # Nunca propaga o campo separado `message.thinking` para o pipeline.
         content = data.get("message", {}).get("content", "")
-        content = THINK_BLOCK_RE.sub("", content).strip()
+        content = strip_thinking(content)
         if not content:
             raise OllamaError("O Ollama retornou uma resposta vazia.")
         return content

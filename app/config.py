@@ -18,7 +18,9 @@ class Settings:
     workspace_dir: Path = Path(os.getenv("WORKSPACE_DIR", "workspace"))
     request_timeout_seconds: int = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "300"))
     ollama_keep_alive: str = os.getenv("OLLAMA_KEEP_ALIVE", "5m")
-    ollama_think: bool = os.getenv("OLLAMA_THINK", "false").lower() in {"1", "true", "yes"}
+    # Mantido somente para compatibilidade com código consumidor. Thinking é
+    # sempre desabilitado pelo cliente, independentemente do ambiente.
+    ollama_think: bool = False
     ollama_max_retries: int = int(os.getenv("OLLAMA_MAX_RETRIES", "2"))
     ollama_retry_backoff_seconds: float = float(os.getenv("OLLAMA_RETRY_BACKOFF_SECONDS", "3"))
     max_synthesis_chars: int = int(os.getenv("MAX_SYNTHESIS_CHARS", "60000"))
