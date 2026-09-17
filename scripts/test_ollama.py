@@ -15,7 +15,10 @@ client = OllamaClient(
 
 client.check()
 print(f"Ollama OK: {settings.ollama_model}")
-print(client.chat(
+result = client.chat(
     "Você é um teste de infraestrutura. Seja breve.",
     "Responda apenas: Repository Intelligence OK"
-))
+)
+if result != "Repository Intelligence OK":
+    raise RuntimeError(f"Resposta contaminada ou inesperada: {result!r}")
+print(result)
