@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Repository Intelligence MVP</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #171a21;
+    --border: #262b36;
+    --text: #e6e8ec;
+    --muted: #8b94a7;
+    --accent: #5b8cff;
+    --ok: #3dd68c;
+    --warn: #f5a623;
+    --err: #ff5c6c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    max-width: 880px;
+    margin: 40px auto;
+    padding: 0 20px 60px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  h1 { font-size: 1.6rem; margin-bottom: 4px; }
+  p.lead { color: var(--muted); margin-top: 0; }
+  label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+  .row { display: flex; gap: 10px; }
+  input {
+    flex: 1;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #10131a;
+    color: var(--text);
+    font-size: 0.95rem;
+  }
+  input:focus { outline: 2px solid var(--accent); }
+  button {
+    padding: 12px 20px;
+    cursor: pointer;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+
+  .card {
+    margin-top: 24px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    display: none;
+  }
+  .card.visible { display: block; }
+
+  .stepper { display: flex; justify-content: space-between; margin-bottom: 18px; position: relative; }
+  .stepper::before {
+    content: "";
+    position: absolute;
+    top: 11px; left: 0; right: 0;
+    height: 2px;
+    background: var(--border);
+    z-index: 0;
+  }
+  .step { flex: 1; text-align: center; position: relative; z-index: 1; }
+  .step .dot {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--border); color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 6px; font-size: 0.75rem; font-weight: 700;
+    border: 2px solid var(--bg);
+  }
+  .step.done .dot { background: var(--ok); color: #06301c; }
+  .step.active .dot { background: var(--accent); color: white; box-shadow: 0 0 0 4px rgba(91,140,255,0.25); }
+  .step.error .dot { background: var(--err); color: #400; }
+  .step .label { font-size: 0.7rem; color: var(--muted); }
+  .step.active .label, .step.done .label { color: var(--text); }
+
+  .progress-bar {
+    width: 100%; height: 10px; border-radius: 6px;
+    background: #10131a; overflow: hidden; border: 1px solid var(--border);
+    margin: 10px 0;
+  }
+  .progress-bar > div {
+    height: 100%; background: linear-gradient(90deg, var(--accent), #7ab0ff);
+    width: 0%; transition: width 0.4s ease;
+  }
+  .progress-bar.indeterminate > div {
+    width: 30% !important;
+    animation: slide 1.2s infinite ease-in-out;
+  }
+  @keyframes slide {
+    0% { margin-left: -30%; }
+    100% { margin-left: 100%; }
+  }
+
+  .message { font-size: 0.95rem; margin: 6px 0 14px; color: var(--text); }
+  .message.error { color: var(--err); font-weight: 600; }
+
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 10px;
+  }
+  .metric {
+    background: #10131a;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .metric .value { font-size: 1.2rem; font-weight: 700; }
+  .metric .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+
+  .current-files { margin-top: 14px; font-size: 0.85rem; color: var(--muted); }
+  .current-files code {
+    background: #10131a; border: 1px solid var(--border);
+    border-radius: 6px; padding: 2px 6px; margin-right: 6px; display: inline-block; margin-bottom: 4px;
+  }
+
+  .tags { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    background: #10131a; border: 1px solid var(--border); border-radius: 999px;
+    padding: 3px 10px; font-size: 0.75rem; color: var(--muted);
+  }
+
+  .actions { margin-top: 18px; display: flex; gap: 10px; }
+  .hint { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+</style>
+</head>
+<body>
+  <h1>Repository Intelligence</h1>
+  <p class="lead">Analise um repositório GitHub localmente usando Git + Python + Ollama.</p>
+
+  <label for="url">URL do GitHub</label>
+  <div class="row">
+    <input id="url" placeholder="https://github.com/usuario/repositorio" onkeydown="if(event.key==='Enter')startAnalysis()">
+    <button id="startBtn" onclick="startAnalysis()">Analisar repositório</button>
+  </div>
+  <div class="hint">Aceita URLs com ou sem <code>www</code>, com sufixo <code>.git</code> ou barra final.</div>
+
+  <div class="card" id="card">
+    <div class="stepper" id="stepper"></div>
+
+    <div class="progress-bar" id="progressBar"><div></div></div>
+    <div class="message" id="message">Aguardando início...</div>
+
+    <div class="metrics" id="metrics"></div>
+
+    <div class="current-files" id="currentFiles"></div>
+    <div class="tags" id="languageTags"></div>
+
+    <div class="actions" id="actions"></div>
+  </div>
+
+<script>
+const STAGE_KEYS = ["ollama", "clone", "scan", "files", "synthesis", "done"];
+let pollTimer = null;
+
+function fmtDuration(seconds) {
+  if (seconds === null || seconds === undefined) return "—";
+  seconds = Math.max(0, Math.round(seconds));
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function renderStepper(stageKey, status) {
+  const stepper = document.getElementById("stepper");
+  stepper.innerHTML = "";
+  const currentIndex = STAGE_KEYS.indexOf(stageKey);
+  const labels = {
+    ollama: "Ollama", clone: "Clone", scan: "Inventário",
+    files: "Arquivos", synthesis: "Síntese", done: "Concluído",
+  };
+
+  STAGE_KEYS.forEach((key, idx) => {
+    const el = document.createElement("div");
+    el.className = "step";
+    if (status === "failed" && idx === Math.max(currentIndex, 0)) {
+      el.classList.add("error");
+    } else if (idx < currentIndex || (idx === currentIndex && status === "completed")) {
+      el.classList.add("done");
+    } else if (idx === currentIndex) {
+      el.classList.add("active");
+    }
+    const dotContent = (idx < currentIndex || (idx === currentIndex && status === "completed"))
+      ? "✓" : (idx + 1);
+    el.innerHTML = `<div class="dot">${status === "failed" && idx === currentIndex ? "!" : dotContent}</div><div class="label">${labels[key]}</div>`;
+    stepper.appendChild(el);
+  });
+}
+
+function renderMetric(container, label, value) {
+  const div = document.createElement("div");
+  div.className = "metric";
+  div.innerHTML = `<div class="value">${value}</div><div class="label">${label}</div>`;
+  container.appendChild(div);
+}
+
+function render(data) {
+  document.getElementById("card").classList.add("visible");
+  renderStepper(data.stage, data.status);
+
+  const stats = data.stats || {};
+  const bar = document.getElementById("progressBar");
+  const barInner = bar.querySelector("div");
+
+  let percent = null;
+  if (data.stage === "files" && stats.calls_progress_percent !== null && stats.calls_progress_percent !== undefined) {
+    percent = stats.calls_progress_percent;
+  } else if (data.status === "completed") {
+    percent = 100;
+  }
+
+  if (percent === null) {
+    bar.classList.add("indeterminate");
+  } else {
+    bar.classList.remove("indeterminate");
+    barInner.style.width = percent + "%";
+  }
+
+  const msgEl = document.getElementById("message");
+  msgEl.textContent = data.status === "failed" ? data.error : data.message;
+  msgEl.className = "message" + (data.status === "failed" ? " error" : "");
+
+  const metrics = document.getElementById("metrics");
+  metrics.innerHTML = "";
+  renderMetric(metrics, "Etapa", `${data.stage_index || "—"}/${data.stage_count} · ${data.stage_label}`);
+  renderMetric(metrics, "Tempo decorrido", fmtDuration(stats.elapsed_seconds));
+  renderMetric(metrics, "Tempo estimado restante", stats.eta_seconds !== null && stats.eta_seconds !== undefined ? fmtDuration(stats.eta_seconds) : "calculando...");
+  if (stats.files_total) {
+    renderMetric(metrics, "Arquivos", `${stats.files_processed}/${stats.files_total}`);
+  }
+  if (stats.files_ignored) {
+    renderMetric(metrics, "Ignorados", stats.files_ignored);
+  }
+  if (stats.llm_calls_estimated) {
+    renderMetric(metrics, "Chamadas ao modelo", `${stats.llm_calls_done}/~${stats.llm_calls_estimated}`);
+  }
+  if (stats.throughput_calls_per_min) {
+    renderMetric(metrics, "Ritmo", `${stats.throughput_calls_per_min}/min`);
+  }
+
+  const currentFilesEl = document.getElementById("currentFiles");
+  if (stats.current_files && stats.current_files.length) {
+    currentFilesEl.innerHTML = "Processando agora: " +
+      stats.current_files.map(f => `<code>${f}</code>`).join(" ");
+  } else {
+    currentFilesEl.innerHTML = "";
+  }
+
+  const tagsEl = document.getElementById("languageTags");
+  tagsEl.innerHTML = "";
+  if (stats.language_counts) {
+    Object.entries(stats.language_counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .forEach(([lang, count]) => {
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = `${lang}: ${count}`;
+        tagsEl.appendChild(tag);
+      });
+  }
+
+  const actions = document.getElementById("actions");
+  actions.innerHTML = "";
+  if (data.status === "completed") {
+    const link = document.createElement("button");
+    link.textContent = "Abrir relatório";
+    link.onclick = () => window.open(`/api/runs/${data.run_id}/report`, "_blank");
+    actions.appendChild(link);
+  }
+  if (data.status === "completed" || data.status === "failed") {
+    const again = document.createElement("button");
+    again.className = "secondary";
+    again.textContent = "Nova análise";
+    again.onclick = () => {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+      document.getElementById("startBtn").disabled = false;
+      document.getElementById("url").value = "";
+      document.getElementById("card").classList.remove("visible");
+    };
+    actions.appendChild(again);
+  }
+}
+
+async function startAnalysis() {
+  const url = document.getElementById("url").value.trim();
+  const startBtn = document.getElementById("startBtn");
+  if (!url) {
+    alert("Informe uma URL do GitHub.");
+    return;
+  }
+
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
+  startBtn.disabled = true;
+  document.getElementById("card").classList.add("visible");
+  document.getElementById("message").textContent = "Iniciando...";
+  document.getElementById("message").className = "message";
+  renderStepper("ollama", "running");
+
+  try {
+    const response = await fetch("/api/analyze", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({url}),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      document.getElementById("message").textContent = data.detail || "Erro ao iniciar a análise.";
+      document.getElementById("message").className = "message error";
+      renderStepper("ollama", "failed");
+      startBtn.disabled = false;
+      return;
+    }
+
+    poll(data.run_id);
+  } catch (err) {
+    document.getElementById("message").textContent = "Erro ao conectar com o servidor: " + err.message;
+    document.getElementById("message").className = "message error";
+    renderStepper("ollama", "failed");
+    startBtn.disabled = false;
+  }
+}
+
+function poll(runId) {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
+  const tick = async () => {
+    try {
+      const response = await fetch(`/api/runs/${runId}`);
+      if (!response.ok) {
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+        document.getElementById("startBtn").disabled = false;
+        const errData = await response.json().catch(() => ({}));
+        const errorMsg = errData.detail || (response.status === 404 ? "Execução não encontrada." : `Erro ${response.status}`);
+
+        const msgEl = document.getElementById("message");
+        msgEl.textContent = errorMsg;
+        msgEl.className = "message error";
+        renderStepper("ollama", "failed");
+
+        const actions = document.getElementById("actions");
+        actions.innerHTML = "";
+        const again = document.createElement("button");
+        again.className = "secondary";
+        again.textContent = "Nova análise";
+        again.onclick = () => {
+          document.getElementById("startBtn").disabled = false;
+          document.getElementById("url").value = "";
+          document.getElementById("card").classList.remove("visible");
+        };
+        actions.appendChild(again);
+        return;
+      }
+
+      const data = await response.json();
+      render(data);
+
+      if (data.status === "completed" || data.status === "failed") {
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+        document.getElementById("startBtn").disabled = false;
+      }
+    } catch (err) {
+      console.error("Erro no polling:", err);
+    }
+  };
+
+  tick();
+  pollTimer = setInterval(tick, 1200);
+}
+</script>
+</body>
+</html>
