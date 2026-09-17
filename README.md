@@ -1,148 +1,334 @@
-# Repository Intelligence MVP
+# Repository Analizer MVP
 
-Ferramenta local para analisar repositórios GitHub usando somente software aberto/local:
-- Git para importar o repositório
-- Python + FastAPI para a aplicação
-- análise estática com Python AST e heurísticas para outras linguagens
-- Ollama para inferência local
-- Qwen3 4B como modelo padrão
-- relatório Markdown com cobertura, evidências, arquitetura, stack, funcionalidades e possíveis problemas
+Ferramenta local para análise automatizada de repositórios GitHub usando **software aberto e inferência local**.
 
-## 1. Pré-requisitos
+O projeto combina análise estática, processamento de arquivos e um modelo de linguagem executado pelo **Ollama** para produzir um relatório técnico sobre o repositório analisado.
 
-Windows 11 / Linux / macOS:
+A proposta é transformar um repositório de código em uma visão estruturada de sua **arquitetura, tecnologias, funcionalidades, evidências de implementação e possíveis problemas**.
 
-1. Git instalado e disponível no PATH.
-2. Python 3.11+.
-3. Ollama instalado.
-4. Modelo baixado:
+## ✨ Funcionalidades
+
+* Importação de repositórios públicos do GitHub.
+* Clone raso para reduzir tempo e espaço utilizados.
+* Inventário dos arquivos do projeto.
+* Detecção automática de linguagens.
+* Análise estrutural de Python usando `ast`.
+* Extração de funções, classes e imports.
+* Leitura de documentação e arquivos de configuração.
+* Divisão de arquivos grandes em blocos.
+* Análise de código utilizando um LLM local.
+* Consolidação das análises por arquivo.
+* Síntese geral do projeto.
+* Geração automática de relatório em Markdown.
+* Cálculo da cobertura de arquivos analisados.
+* Acompanhamento da execução em tempo real.
+* Estimativa dinâmica do tempo restante (ETA).
+* Registro das etapas e dados intermediários de cada execução.
+* Execução totalmente local, sem necessidade de API externa de IA.
+
+### Stack
+
+| Componente               | Tecnologia               |
+| ------------------------ | ------------------------ |
+| Backend                  | Python + FastAPI         |
+| Análise estática         | Python AST + heurísticas |
+| LLM                      | Ollama                   |
+| Modelo padrão            | Qwen3 4B                 |
+| Versionamento/importação | Git                      |
+| Relatórios               | Markdown                 |
+| Interface                | Web                      |
+
+---
+
+## 🏗️ Arquitetura
+
+O pipeline principal segue uma abordagem hierárquica:
+
+```text
+GitHub Repository
+       │
+       ▼
+ URL Validation
+       │
+       ▼
+  Git Clone
+       │
+       ▼
+   Inventory
+       │
+       ├── Language Detection
+       ├── Static Analysis
+       ├── Documentation
+       └── Configuration
+       │
+       ▼
+   Code Chunks
+       │
+       ▼
+  Local LLM Analysis
+       │
+       ▼
+ File-level Synthesis
+       │
+       ▼
+Project-level Synthesis
+       │
+       ▼
+    Report
+```
+
+Essa abordagem evita enviar um repositório inteiro em uma única chamada ao modelo e permite que modelos locais menores processem projetos maiores de forma incremental.
+
+---
+
+## 📋 Pré-requisitos
+
+Compatível com:
+
+* Windows 11
+* Linux
+* macOS
+
+É necessário ter instalado:
+
+1. **Git**, disponível no `PATH`.
+2. **Python 3.11 ou superior**.
+3. **Ollama**.
+4. Um modelo compatível instalado localmente.
+
+Por padrão, o projeto utiliza o **Qwen3 4B**:
 
 ```bash
 ollama pull qwen3:4b
 ```
 
-Teste:
+Teste a instalação:
 
 ```bash
 ollama run qwen3:4b
 ```
 
-A aplicação usa `http://127.0.0.1:11434` por padrão.
+O Ollama é acessado por padrão em:
 
-## 2. Instalação
+```text
+http://127.0.0.1:11434
+```
 
-No terminal, dentro desta pasta:
+---
+
+## 🚀 Instalação
+
+Clone ou copie este projeto e abra um terminal dentro da pasta.
 
 ### Windows PowerShell
 
 ```powershell
 py -3 -m venv .venv
+
 .\.venv\Scripts\Activate.ps1
+
 python -m pip install --upgrade pip
+
 pip install -r requirements.txt
+
 Copy-Item .env.example .env
 ```
 
-Se o PowerShell bloquear scripts:
+Se o PowerShell bloquear a execução de scripts:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
 .\.venv\Scripts\Activate.ps1
 ```
 
-### Linux/macOS
+### Linux / macOS
 
 ```bash
 python3 -m venv .venv
+
 source .venv/bin/activate
+
 python -m pip install --upgrade pip
+
 pip install -r requirements.txt
+
 cp .env.example .env
 ```
 
-## 3. Rodar
+---
 
-Com o ambiente virtual ativo:
+## ▶️ Executando
+
+Com o ambiente virtual ativado:
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-Abra:
+A aplicação estará disponível em:
 
+```text
 http://127.0.0.1:8000
+```
 
-Também existe documentação automática da API:
+A documentação interativa da API pode ser acessada em:
 
+```text
 http://127.0.0.1:8000/docs
+```
 
-## 4. Uso
+---
+
+## 🔍 Utilização
 
 Informe uma URL pública do GitHub, por exemplo:
 
 ```text
-https://github.com/seu-usuario/seu-repositorio
+https://github.com/usuario/repositorio
 ```
 
-A tela de acompanhamento mostra, em tempo real:
-- em qual das 6 etapas a análise está (Ollama → Clone → Inventário → Arquivos → Síntese → Concluído), com um indicador visual de progresso;
-- quantos arquivos já foram processados e quantos faltam;
-- quais arquivos estão sendo analisados neste momento;
-- tempo decorrido e **tempo estimado restante (ETA)**, recalculado continuamente com base no ritmo real de chamadas ao modelo;
-- ritmo de processamento (chamadas ao modelo por minuto);
-- linguagens detectadas no repositório.
+Após iniciar a análise, a interface acompanha o processamento em tempo real.
 
-A análise executa:
+### Progresso da análise
 
-1. validação/normalização da URL;
-2. clone local (raso, um commit, um branch);
-3. inventário de arquivos;
-4. detecção de linguagens;
-5. análise estrutural de Python;
-6. extração de funções/classes/imports;
-7. leitura de arquivos de documentação e configuração;
-8. divisão do código em blocos;
-9. análise de cada bloco pelo modelo (arquivos que cabem em um único bloco pulam direto para a análise consolidada, em uma única chamada);
-10. consolidação por arquivo;
-11. consolidação do projeto;
-12. geração do relatório;
-13. cálculo da cobertura de arquivos.
+O pipeline possui seis etapas principais:
 
-O relatório fica em:
+```text
+Ollama
+   ↓
+Clone
+   ↓
+Inventário
+   ↓
+Arquivos
+   ↓
+Síntese
+   ↓
+Concluído
+```
+
+Durante a execução são exibidos:
+
+* etapa atual;
+* progresso geral;
+* quantidade de arquivos processados;
+* quantidade de arquivos restantes;
+* arquivos em processamento;
+* tempo decorrido;
+* tempo estimado restante (ETA);
+* ritmo de processamento;
+* chamadas ao modelo por minuto;
+* linguagens detectadas.
+
+### Pipeline completo
+
+Internamente, a análise passa pelas seguintes etapas:
+
+1. Validação e normalização da URL.
+2. Verificação da disponibilidade do Ollama.
+3. Clone local do repositório.
+4. Inventário dos arquivos.
+5. Detecção das linguagens utilizadas.
+6. Análise estrutural de Python.
+7. Extração de funções, classes e imports.
+8. Leitura de documentação e arquivos de configuração.
+9. Divisão de arquivos grandes em blocos.
+10. Análise dos blocos pelo modelo local.
+11. Consolidação da análise por arquivo.
+12. Consolidação da análise do projeto.
+13. Geração do relatório.
+14. Cálculo da cobertura dos arquivos.
+
+Arquivos que cabem em um único bloco são analisados diretamente, evitando uma chamada adicional de sumarização.
+
+---
+
+## 📄 Relatório
+
+O relatório final é gerado em:
 
 ```text
 workspace/reports/<id>/report.md
 ```
 
-Os dados intermediários ficam em:
+Cada execução também mantém seus dados intermediários em:
 
 ```text
 workspace/runs/<id>/
 ```
 
-## 5. Importante sobre "analisar tudo"
+O relatório busca apresentar, com base nas evidências encontradas no repositório:
 
-O MVP tenta processar todos os arquivos de texto elegíveis, mas não envia o repositório inteiro em uma única chamada ao modelo.
+* visão geral do projeto;
+* stack tecnológica;
+* linguagens;
+* arquitetura;
+* estrutura de diretórios;
+* funcionalidades identificadas;
+* componentes relevantes;
+* dependências;
+* evidências de implementação;
+* possíveis problemas ou pontos de atenção;
+* arquivos analisados;
+* arquivos ignorados;
+* cobertura da análise.
 
-Ele faz análise hierárquica:
+---
+
+## 🧠 Como funciona a análise
+
+O projeto **não envia o repositório inteiro para o modelo de uma única vez**.
+
+Em vez disso, utiliza uma estratégia hierárquica:
 
 ```text
-repositório
-  -> inventário
-  -> arquivo
-  -> blocos de código
-  -> resumo por arquivo
-  -> síntese do projeto
-  -> relatório
+Repositório
+    │
+    ▼
+Inventário
+    │
+    ▼
+Arquivos
+    │
+    ▼
+Blocos de código
+    │
+    ▼
+Análise individual
+    │
+    ▼
+Resumo por arquivo
+    │
+    ▼
+Síntese do projeto
+    │
+    ▼
+Relatório
 ```
 
-Isso é necessário para que um modelo de 4B consiga trabalhar com repositórios maiores.
+Essa estratégia reduz a quantidade de contexto necessária em cada chamada e torna possível trabalhar com modelos locais menores.
 
-Arquivos binários, diretórios de dependências/build/cache e arquivos acima do limite configurado são excluídos e aparecem no relatório como ignorados.
+### Cobertura
 
-## 6. Configuração
+O sistema tenta analisar todos os arquivos de texto considerados elegíveis.
 
-Edite `.env`:
+Entretanto, alguns arquivos podem ser excluídos por motivos como:
+
+* formato binário;
+* diretórios de dependências;
+* diretórios de build;
+* caches;
+* arquivos acima do limite configurado;
+* quantidade máxima de arquivos atingida.
+
+Os arquivos excluídos são registrados no relatório para que a cobertura da análise seja identificável.
+
+---
+
+## ⚙️ Configuração
+
+As configurações podem ser alteradas no arquivo `.env`:
 
 ```env
 OLLAMA_BASE_URL=http://127.0.0.1:11434
@@ -154,60 +340,147 @@ MAX_CHUNK_CHARS=10000
 MAX_FILES=1000
 
 WORKSPACE_DIR=workspace
-REQUEST_TIMEOUT_SECONDS=300
-OLLAMA_KEEP_ALIVE=5m
 
+REQUEST_TIMEOUT_SECONDS=300
+
+OLLAMA_KEEP_ALIVE=5m
 OLLAMA_THINK=false
+
 OLLAMA_MAX_RETRIES=2
 OLLAMA_RETRY_BACKOFF_SECONDS=3
+
 MAX_SYNTHESIS_CHARS=60000
+
 OLLAMA_CONCURRENCY=1
 ```
 
-Para testar mais rápido em um projeto pequeno, reduza `MAX_CHUNK_CHARS`.
+### Principais parâmetros
 
-- `OLLAMA_THINK`: alguns modelos (como o Qwen3) têm um modo de "raciocínio" que,
-  se ligado, produz blocos `<think>...</think>` na resposta. Por padrão isso
-  fica desligado para manter o relatório limpo; qualquer bloco desse tipo que
-  ainda vier do modelo é removido automaticamente como salvaguarda.
-- `OLLAMA_MAX_RETRIES` / `OLLAMA_RETRY_BACKOFF_SECONDS`: número de novas
-  tentativas e o intervalo entre elas quando uma chamada ao Ollama falha por
-  motivo transitório (rede, timeout), para não derrubar a análise inteira por
-  uma falha pontual.
-- `MAX_SYNTHESIS_CHARS`: limite de caracteres agregados de resumos enviados
-  de uma vez ao modelo nas etapas de consolidação (por arquivo e do projeto).
-  Evita estourar a janela de contexto de um modelo pequeno em repositórios
-  com muitos arquivos; o que não couber fica sinalizado no relatório.
-- `OLLAMA_CONCURRENCY`: número de arquivos analisados em paralelo (padrão `1`,
-  ou seja, sequencial — o mesmo comportamento de antes). Só aumente isso se o
-  seu servidor Ollama realmente processa requisições em paralelo (ver
-  `OLLAMA_NUM_PARALLEL` na documentação do Ollama e a capacidade da sua GPU);
-  em uma instalação local comum, com um único modelo carregado, aumentar esse
-  valor tende a enfileirar as chamadas do mesmo jeito e não traz ganho real.
+| Variável                       | Função                                         |
+| ------------------------------ | ---------------------------------------------- |
+| `OLLAMA_BASE_URL`              | Endereço do servidor Ollama                    |
+| `OLLAMA_MODEL`                 | Modelo utilizado na análise                    |
+| `MAX_REPO_SIZE_MB`             | Tamanho máximo do repositório                  |
+| `MAX_FILE_SIZE_KB`             | Tamanho máximo de um arquivo                   |
+| `MAX_CHUNK_CHARS`              | Tamanho máximo dos blocos enviados ao modelo   |
+| `MAX_FILES`                    | Número máximo de arquivos processados          |
+| `WORKSPACE_DIR`                | Diretório de trabalho                          |
+| `REQUEST_TIMEOUT_SECONDS`      | Timeout das requisições                        |
+| `OLLAMA_KEEP_ALIVE`            | Tempo de permanência do modelo carregado       |
+| `OLLAMA_THINK`                 | Ativa/desativa o modo de raciocínio do modelo  |
+| `OLLAMA_MAX_RETRIES`           | Número de novas tentativas após falhas         |
+| `OLLAMA_RETRY_BACKOFF_SECONDS` | Intervalo entre tentativas                     |
+| `MAX_SYNTHESIS_CHARS`          | Limite de contexto nas sínteses                |
+| `OLLAMA_CONCURRENCY`           | Número de arquivos processados simultaneamente |
 
-## 7. Desempenho
+### Modo de raciocínio
 
-Otimizações já aplicadas para manter a análise leve e rápida:
+O `OLLAMA_THINK` controla o modo de raciocínio de modelos que oferecem esse recurso, como o Qwen3.
 
-- **Uma chamada por arquivo pequeno, não duas.** Arquivos que cabem em um
-  único bloco (a maioria de um repositório típico, dado `MAX_CHUNK_CHARS`)
-  vão direto para a análise consolidada, sem uma etapa extra de
-  "resumir o resumo".
-- **Conexão HTTP reaproveitada** com o Ollama (pool com keep-alive), em vez
-  de abrir uma conexão TCP nova a cada chamada.
-- **Clone raso e leve**: `--depth 1 --single-branch --no-tags`, evitando
-  baixar histórico, outros branches e tags.
-- **Leitura de binários em streaming**: a checagem de "isto é um arquivo
-  binário?" lê só os primeiros 4 KB do arquivo, em vez de carregar o
-  arquivo inteiro na memória.
-- **Orçamento de contexto** (`MAX_SYNTHESIS_CHARS`) para não estourar a
-  janela de um modelo pequeno em repositórios com muitos arquivos.
-- **Paralelismo opcional** (`OLLAMA_CONCURRENCY`) para quando o backend do
-  modelo suporta múltiplas requisições simultâneas.
+Por padrão:
 
-## 8. API
+```env
+OLLAMA_THINK=false
+```
 
-### POST /api/analyze
+Isso evita que blocos de raciocínio sejam incorporados ao relatório.
+
+Como proteção adicional, respostas contendo blocos `<think>...</think>` são filtradas antes de serem utilizadas pelo pipeline.
+
+### Retry
+
+As configurações:
+
+```env
+OLLAMA_MAX_RETRIES=2
+OLLAMA_RETRY_BACKOFF_SECONDS=3
+```
+
+permitem repetir automaticamente chamadas que falharam por motivos transitórios, como timeout ou falha de comunicação com o Ollama.
+
+Isso evita que uma falha pontual interrompa toda a análise.
+
+### Orçamento de contexto
+
+`MAX_SYNTHESIS_CHARS` limita a quantidade de conteúdo agregado enviada ao modelo durante as etapas de consolidação.
+
+Isso é especialmente importante para modelos com janelas de contexto menores.
+
+Quando o conteúdo excede o limite, a informação excedente é sinalizada no relatório.
+
+### Concorrência
+
+Por padrão:
+
+```env
+OLLAMA_CONCURRENCY=1
+```
+
+A análise ocorre sequencialmente.
+
+É possível aumentar esse valor quando a infraestrutura do Ollama suportar múltiplas requisições simultâneas.
+
+Em uma instalação local comum utilizando um único modelo, aumentar a concorrência pode simplesmente enfileirar as requisições e não necessariamente reduzir o tempo total.
+
+---
+
+## ⚡ Desempenho
+
+O MVP possui algumas otimizações para reduzir o custo computacional e o número de chamadas ao modelo.
+
+### Uma chamada para arquivos pequenos
+
+Arquivos que cabem em um único bloco são enviados diretamente para análise consolidada.
+
+Isso evita uma etapa intermediária de:
+
+```text
+código → resumo → análise do resumo
+```
+
+e utiliza:
+
+```text
+código → análise
+```
+
+### Conexão HTTP reutilizada
+
+A comunicação com o Ollama utiliza uma conexão HTTP reaproveitada, reduzindo o overhead de estabelecer uma nova conexão a cada chamada.
+
+### Clone raso
+
+O repositório é clonado utilizando:
+
+```text
+--depth 1
+--single-branch
+--no-tags
+```
+
+Isso evita baixar histórico, branches adicionais e tags desnecessárias para a análise.
+
+### Detecção de binários
+
+A identificação de arquivos binários utiliza uma leitura inicial limitada, evitando carregar arquivos inteiros apenas para determinar seu tipo.
+
+### Orçamento de contexto
+
+A síntese utiliza `MAX_SYNTHESIS_CHARS` para evitar que grandes quantidades de informação sejam enviadas de uma só vez para modelos com contexto limitado.
+
+### Concorrência opcional
+
+`OLLAMA_CONCURRENCY` permite explorar paralelismo quando a infraestrutura disponível justificar seu uso.
+
+---
+
+## 🔌 API
+
+### `POST /api/analyze`
+
+Inicia uma nova análise.
+
+Exemplo:
 
 ```json
 {
@@ -215,84 +488,82 @@ Otimizações já aplicadas para manter a análise leve e rápida:
 }
 ```
 
-Retorna o ID da execução.
+Retorna o identificador da execução.
 
-### GET /api/runs
+### `GET /api/runs`
 
-Lista todas as execuções desta sessão do servidor (id, URL, status, etapa).
+Lista as execuções disponíveis na sessão atual do servidor.
 
-### GET /api/runs/{run_id}
+Inclui informações como:
 
-Retorna o status.
+* ID;
+* URL;
+* status;
+* etapa atual.
 
-### GET /api/runs/{run_id}/report
+### `GET /api/runs/{run_id}`
 
-Retorna o Markdown do relatório.
+Retorna o estado atual de uma execução.
 
-## 9. Testes
+### `GET /api/runs/{run_id}/report`
 
-Testes automatizados cobrem o scanner (detecção de linguagem, arquivos
-binários, inventário) e as funções auxiliares do pipeline (validação de URL,
-divisão em blocos, orçamento de contexto na síntese):
+Retorna o relatório Markdown gerado para a execução.
+
+---
+
+## 🧪 Testes
+
+Os testes automatizados cobrem componentes do scanner e funções auxiliares do pipeline, incluindo:
+
+* detecção de linguagens;
+* identificação de arquivos binários;
+* inventário;
+* validação de URLs;
+* divisão em blocos;
+* orçamento de contexto da síntese.
+
+Instale as dependências de desenvolvimento:
 
 ```bash
 pip install -r requirements-dev.txt
+```
+
+Execute:
+
+```bash
 pytest
 ```
 
-## 10. Limitações atuais
+---
 
-Este é um MVP.
+## ⚠️ Limitações atuais
 
-Ainda não possui:
-- banco vetorial;
-- embeddings;
-- GraphRAG;
-- análise profunda de todas as linguagens via AST;
-- execução de testes do projeto analisado;
-- análise dinâmica;
-- autenticação GitHub;
-- suporte a repositórios privados;
-- interface de perguntas e respostas sobre o repositório.
+Este projeto é um **MVP** e possui limitações importantes.
 
-Esses recursos devem entrar em etapas posteriores.
+Atualmente não possui:
 
-## 11. Próxima evolução
+* banco de dados vetorial;
+* embeddings;
+* GraphRAG;
+* análise AST aprofundada para todas as linguagens;
+* execução dos testes do repositório analisado;
+* análise dinâmica;
+* autenticação com GitHub;
+* suporte a repositórios privados;
+* interface de perguntas e respostas sobre o repositório;
+* grafo completo de dependências entre componentes.
 
-A arquitetura foi pensada para evoluir para:
+A análise também depende da capacidade do modelo local utilizado. Modelos menores podem produzir análises menos precisas ou perder relações entre componentes de projetos grandes.
 
-```text
-GitHub
-  |
-  v
-Repository Ingestion
-  |
-  +--> Static Analysis
-  |      +--> AST
-  |      +--> imports
-  |      +--> functions/classes
-  |      +--> dependency graph
-  |
-  +--> Documentation
-  |
-  +--> Code chunks
-          |
-          v
-     Embeddings
-          |
-          v
-      Vector DB
-          |
-          +------> Graph
-                    |
-                    v
-                  Agent
-                    |
-                    v
-                Evidence
-                    |
-                    v
-                 Report
-```
+---
 
-O objetivo acadêmico pode ser transformar vários repositórios de projetos em uma base de conhecimento técnico consultável por IA.
+## 🎓 Objetivo acadêmico
+
+Uma possível aplicação acadêmica do projeto é utilizar diversos repositórios de projetos técnicos como fonte para construir uma **base de conhecimento sobre desenvolvimento de software**.
+
+A partir dessa base, seria possível investigar como técnicas de análise estática, recuperação de informação e IA generativa podem ser combinadas para permitir que sistemas de IA compreendam e consultem projetos de software de forma fundamentada em evidências extraídas diretamente do código e da documentação.
+
+O MVP apresentado neste repositório representa a etapa de **ingestão, análise e estruturação das informações técnicas dos repositórios**.
+
+---
+
